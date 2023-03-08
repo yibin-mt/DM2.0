@@ -1,0 +1,20 @@
+syntax = "proto3";
+package nlp.dm;
+
+option java_package = "com.mthreads.ai.protos.nlp.dm";
+
+service Dm { 
+  rpc GetDm(DmRequest) 
+      returns (DmResponse); 
+}
+
+// Next ID: 5
+message DmRequest {
+  string text = 1;
+  repeated string history = 2;
+  int64 session_id = 3;
+  int64 robot_id = 4;
+}
+
+// Next ID: 2
+message DmResponse { string text = 1; }
