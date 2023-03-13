@@ -14,7 +14,7 @@ dayoff_list = ['我要','帮我','替我','请假', '请病假', '居家办公',
 ticket_list = ['机票','订', '买']
 
 guess_list = ['不对','不正确','答案','错误', '重新', '想想', '错啦', '笨蛋', '答错', '再猜猜']
-sucess_list = ['真棒', '谢谢', '厉害', '不错', '聪明', '辛苦','是的','答对','正确']
+sucess_list = ['真棒', '谢谢', '厉害', '聪明', '辛苦','是的','答对','正确', '对']
 stop_list = ['别猜','算了','停','傻瓜','笨','蠢']
 
 KF_skill_word_list = [fund_list, dayoff_list, guess_list]
@@ -65,7 +65,7 @@ def guess_stop(query):
     cnt = sum(1 for _ in actree.iter(query))
     actree2 = build_actree(wordlist=stop_list)
     cnt2 = sum(1 for _ in actree2.iter(query))
-    if cnt>=1:
+    if cnt>=1 and '不' not in query:
         return True, 'guess_sucess'
     elif cnt2>=1:
         return True, 'guess_stop'
@@ -81,27 +81,39 @@ def verify_date_str_lawyer(datetime_str):
     	return False
     
 def check(query, label):
-    if label =='base':
+    if label == 'base':
         res = re.findall(r"\d+\.?\d*",query)
         if res==[]:
             return False, ''
         else:
             return True, res[0]
 
-    elif label =='city':
-        city_list = ['深圳','广州','北京','上海','成都','西安','合肥','杭州','青岛','乌鲁木齐','重庆','苏州']
+    elif 'city' in label:
+        city_list = ['深圳','广州','北京','上海','成都','西安','合肥','杭州','青岛','乌鲁木齐','重庆','苏州','武汉', '南昌', '吉林', '珠海']
         actree = build_actree(wordlist=city_list)
         cnt = sum(1 for _ in actree.iter(query))
         if cnt>=1:
             return True, query
         else:
             return False, ''
+        
+    elif label == 'stage_type':
+        if len(query)==2:
+            if query in ['经济','头等']:
+                return True, query+'舱'
+        elif len(query)==3:
+            if query in ['经济舱','头等舱']:
+                return True, query
+        return False, ''
     
     elif label == 'kind':
-        if 1<=int(query)<=8 or query in ['年假','带薪病假','育儿假','居家办公','事假','病假','婚假','产假']:
+        if query.isdigit():
+            if 1<=int(query)<=8:
+                return True, query
+        elif query in ['年假','带薪病假','育儿假','居家办公','事假','病假','婚假','产假']:
             return True, query
-        else:
-            return False, ''
+        
+        return False, ''
         
     elif label == 'lay_time':
         start, end = query.split('｜')
@@ -133,7 +145,7 @@ def check(query, label):
             return False, ''
 
     elif label == 'confirm':
-        if query in ['yes','y','确定']:
+        if query in ['yes','y','确定','ok']:
             return True, query
         elif query in ['no','n', '否']:
             return False, query
@@ -141,6 +153,7 @@ def check(query, label):
             return False, ''
         
     elif label == 'time':
+        query = query.replace('今晚','今天晚上').replace('明早','明天早上').replace('明晚','明天晚上')
         parse_time = time_extract(query)
         if parse_time:
             return True, parse_time[0]

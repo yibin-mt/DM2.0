@@ -10,6 +10,7 @@ def response_ticket(slot, slots=None, entities=None, stage_type=None):
     elif slot == 'stage_type':
         return '请问是要预定经济舱还是头等舱呢'
     elif slot == 'confirm':
+        print(entities)
         start_city = entities[slots.index('start_city')]
         end_city = entities[slots.index('end_city')]
         time = entities[slots.index('time')]

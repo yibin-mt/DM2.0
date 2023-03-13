@@ -68,11 +68,12 @@ class DmClass(object):
         print('FAQ: ', self.FAQ)
         self.faq = Faq_inference(self.args.faq_ip, self.args.faq_port)
         self.faq_chat = Faq_Chat_inference(self.chat_repo, self.args.faq_ip, self.args.faq_port)
+        
         self.qr = IUR_inference({}, self.args.qr_ip, self.args.qr_port)
         self.docqa = DocQAInference({}, self.args.docqa_ip, self.args.docqa_port)
         self.chat = Chat_inference(self.args.chat_ip, self.args.chat_port)
         self.emotion = Emotion_inference(self.args.emotion_ip, self.args.emotion_port)
-        self.chat_thres = 0.8
+        self.chat_thres = 0.89
         self.qr_thres = 0.8
         self.faq_thres = 0.75
         self.docqa_thres = 0.72
@@ -118,21 +119,34 @@ class DmClass(object):
     def get_emotion(self, text):
         return self.emotion.emotion_answer(text)
         
-    def strategy_2(self, query):
+    def strategy_2(self, query, logger):
         pred_class = int(self.model.predict(self.word_segment(query))[0][0][-1])
         #Faq
         if pred_class==0 and self.FAQ:
             #faq结果
-            answer_1, faq, score_1, match = self.faq.faq_answer(query)
+            flag = True
+            try:
+                answer_1, faq, score_1, match = self.faq.faq_answer(query)
+            except:
+                flag = False
+                score_1 = 0
+                logger.info('FAQ server disconnected')
             #docqa结果
-            docqa_rst = self.docqa.docqa_answer('mita', query)
-            res = eval(MessageToJson(docqa_rst, ensure_ascii=False, indent=2))
+            try:
+                docqa_rst = self.docqa.docqa_answer('mita', query)
+                res = eval(MessageToJson(docqa_rst, ensure_ascii=False, indent=2))
+            except:
+                res = {}
+                logger.info('Docqa server disconnected')
+            
             #docqa是否有答案返回
             if res == {}:
-                if score_1<self.faq_thres:
+                if score_1<self.faq_thres and flag:
                     return self.FAQ_DEFAULT_ANSWER+faq, 1.0, pred_class 
+                elif score_1>=self.faq_thres and flag:
+                    return answer_1, score_1, pred_class
                 else:
-                    return answer, score, pred_class
+                    return self.FAQ_DEFAULT_ANSWER, 1.0, pred_class
             else:
                 try:
                     start = int(res['result'][0]['start'])
@@ -150,22 +164,42 @@ class DmClass(object):
             if pred_class == 1:
                 answer, faq, score, match = self.faq_chat.chat_answer(query)
                 if score < self.chat_thres:
+                    try:
+                        res = self.chat.response([self.history], query)
+                        answer = res[0]
+                        score = res[1]
+                    except:
+                        answer = '聊天服务好像断开了，可以先试试其他服务～'
+                        score = 1
+                        logger.info('chat server disconnected')
+                    
+            elif pred_class == 0:
+                try:
                     res = self.chat.response([self.history], query)
                     answer = res[0]
                     score = res[1]
-                    
-            elif pred_class == 0:
-                res = self.chat.response([self.history], query)
-                answer = res[0]
-                score = res[1]
+                except:
+                    answer = '聊天服务好像断开了，可以先试试其他服务～'
+                    score = 1
+                    logger.info('chat server disconnected')
             return answer, score, pred_class
         
         #文档问答
         else:
-            docqa_rst = self.docqa.docqa_answer('wiki', query)
-            res = eval(MessageToJson(docqa_rst, ensure_ascii=False, indent=2))
-            if res=={}:
+            flag = True
+            try:
+                docqa_rst = self.docqa.docqa_answer('wiki', query)
+                res = eval(MessageToJson(docqa_rst, ensure_ascii=False, indent=2))
+            except:
+                flag = False
+                logger.info('docqa server disconnected')
+                
+            if not flag:
+                return '知识问答服务貌似断开了，请先尝试其他服务哦～', 1.0, pred_class
+            
+            elif res=={}:
                 return self.DOCQA_DEFAULT_ANSWER, 1.0, pred_class
+            
             elif res['result'][0]['score']<self.docqa_thres:
                 sources=[]
                 for i in range(5):
@@ -173,6 +207,7 @@ class DmClass(object):
                 common_source = max(sources,key=sources.count)
                 ans = self.DOCQA_DEFAULT_ANSWER_2+common_source+'》的问题，可以尝试换个问法哦～'
                 return ans, res['result'][0]['score'], pred_class
+            
             else:
                 temp_ans = []
                 for i in range(5):
@@ -188,7 +223,7 @@ class DmClass(object):
                 temp_ans = sorted(set(temp_ans), key=temp_ans.index)
                 temp_ans.remove(first_ans)
                 for text in temp_ans:
-                    if first_ans in text:
+                    if first_ans in text or text in first_ans:
                         temp_ans.remove(text)
                 self.entities.extend(temp_ans)
                 return first_ans, res['result'][0]['score'], pred_class
@@ -288,6 +323,7 @@ class DmClass(object):
         print(new_query, qr_score)
         if qr_score>self.qr_thres and new_query!=query:
             return new_query
+    
         return query
     
     def response(self):
@@ -311,9 +347,12 @@ class DmClass(object):
                 self.conversation.insert(0,'')
                 self.conversation.insert(1,'')
             #改写
-            new_query = self.query_write_strategy(self.query, self.conversation, self.intent, self.task_id)
-            self.query = new_query
-            logger.info('query rewrite output:{}'.format(self.query))
+            try:
+                new_query = self.query_write_strategy(self.query, self.conversation, self.intent, self.task_id)
+                self.query = new_query
+                logger.info('query rewrite output:{}'.format(self.query))
+            except:
+                logger.info('query rewrite server disconnected')
 
             if self.task_id!=[]:
                 if_task = True
@@ -327,8 +366,9 @@ class DmClass(object):
             #判断是否为任务型对话，或者在多轮内（此时需要填充的槽非空）
             if if_task or self.slots!=[]:
                 answer, score, intent, slots, entities, task_id = self.Do_skills(skill_id)
+                # self.intent.append(id_2_intent[3])
             else:
-                answer, score, intent = self.strategy_2(self.query)
+                answer, score, intent = self.strategy_2(self.query, logger)
             
             intent = id_2_intent[int(intent)]
             emotion = self.get_emotion(answer)
@@ -347,7 +387,8 @@ class DmClass(object):
             self.conversation.insert(3, answer)
             
             #多轮对话内的意图id与task id，不重复加入
-            if intent!='Mutil-Turn' or self.intent==[] or (intent == 'Mutil-Turn' and self.intent[-1]!='Mutil-Turn'):
+            if intent!='Mutil-Turn' or self.intent==[] or \
+            (intent == 'Mutil-Turn' and self.slots==[]):
                 self.intent.append(intent)
                 self.task_id.extend(task_id)
             
@@ -357,7 +398,7 @@ class DmClass(object):
                 self.task_id.clear()
             else:
                 self.slots.extend(slots)
-                self.entities.extend(str(entities))
+                self.entities.extend(entities)
             history = {'conversation':self.conversation,'intent':self.intent,'slots':self.slots,'entities':self.entities,'task_id':self.task_id}
             return answer, history, emotion.answer
                 

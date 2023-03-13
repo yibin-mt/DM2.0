@@ -1,13 +1,13 @@
+import time
 import sys
 import argparse 
 sys.path.append('./DM/')
 sys.path.append('./DM/models/')
 from concurrent import futures
-import time
 import grpc
 from protos.nlp.dm import dm_pb2
 from protos.nlp.dm import dm_pb2_grpc
-from DmClass import *
+from DmClass import DmClass
 
 # 实现 proto 文件中定义的 DmServicer
 class DmService(dm_pb2_grpc.DmServicer):
@@ -31,9 +31,9 @@ def serve(args):
     # 启动 rpc 服务
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     dm_pb2_grpc.add_DmServicer_to_server(DmService(args), server)
-    # server.add_insecure_port('[::]:50051')
+    server.add_insecure_port('[::]:50051')
     print('server start in port: ', args.dm_port)
-    server.add_insecure_port('0.0.0.0:'+args.dm_port)
+    # server.add_insecure_port('0.0.0.0:'+args.dm_port)
     server.start()
     server.wait_for_termination()
 
