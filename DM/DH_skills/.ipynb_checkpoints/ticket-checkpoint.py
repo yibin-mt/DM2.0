@@ -6,7 +6,7 @@ def response_ticket(slot, slots=None, entities=None, stage_type=None):
     elif slot == 'end_city':
         return '请输入您的目的地'
     elif slot == 'time':
-        return '情输入出发时间'
+        return '请输入出发时间'
     elif slot == 'stage_type':
         return '请问是要预定经济舱还是头等舱呢'
     elif slot == 'confirm':

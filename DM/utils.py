@@ -1,6 +1,7 @@
 import re
 import sys
 import time
+import json
 import datetime
 from KF_skills.fund import *
 from KF_skills.dayoff import *
@@ -72,7 +73,12 @@ def guess_stop(query):
     else:
         return False, '_'
 
-
+def get_api_key():
+    openai_key_file = 'DM/models/openai_key.json'
+    with open(openai_key_file, 'r', encoding='utf-8') as f:
+        openai_key = json.loads(f.read())
+    return openai_key['api']
+    
 def verify_date_str_lawyer(datetime_str):
     try:        
     	datetime.datetime.strptime(datetime_str, '%Y-%m-%d')        

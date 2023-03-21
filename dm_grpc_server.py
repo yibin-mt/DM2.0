@@ -31,9 +31,9 @@ def serve(args):
     # 启动 rpc 服务
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     dm_pb2_grpc.add_DmServicer_to_server(DmService(args), server)
-    server.add_insecure_port('[::]:50051')
+    # server.add_insecure_port('[::]:50051')
     print('server start in port: ', args.dm_port)
-    # server.add_insecure_port('0.0.0.0:'+args.dm_port)
+    server.add_insecure_port('0.0.0.0:'+args.dm_port)
     server.start()
     server.wait_for_termination()
 
@@ -44,7 +44,8 @@ if __name__ == '__main__':
     parser.add_argument('--skill_type', default='DH', choices=['DH', 'KF'], help='What type of multi-turn capability the robot has')
     parser.add_argument('--FAQ', action="store_true", default=False, help='if run the faq server')
     parser.add_argument('--QR', action="store_true", default=False, help='if run the query rewrite server')
-    
+    parser.add_argument('--chatgpt', action="store_true", default=False, help='if use chatgpt server')
+    parser.add_argument('--chatglm', action="store_true", default=False, help='if use chatglm server')
     #对应字段的解释可以查看https://confluence.mthreads.com/pages/viewpage.action?pageId=93088300
     parser.add_argument('--qr_ip', default='192.168.68.26', type=str)
     parser.add_argument('--qr_port', default='60005', type=str)
