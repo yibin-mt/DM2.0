@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package mt_nlp_demo;
+service NLGService {
+  rpc  NLGGet(NLGMessage) returns (stream NLGResponse) {}
+}
+message NLGMessage {
+  string channel_id = 1;
+  repeated string context = 2;
+  string prompt_prefix = 3;
+  string prompt_suffix = 4;
+  int32 max_output_length = 5;
+  repeated string args = 6;
+}
+message NLGResponse{
+  string output = 1;
+  repeated string others = 3;
+}

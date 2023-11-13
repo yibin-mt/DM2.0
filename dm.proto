@@ -1,0 +1,57 @@
+syntax = "proto3";
+package nlp.dm;
+option java_package = "com.mthreads.ai.protos.nlp.dm";
+
+service Dm { 
+  // The details of the communication is described in: https://confluence.mthreads.com/pages/viewpage.action?pageId=88328242
+  rpc GetDm(DmRequest) 
+      returns (stream DmResponse); 
+}
+
+message HistoryElement {
+  repeated string conversation = 1;
+  repeated string intent = 2;
+  repeated string slots = 3;
+  repeated string entities = 4;
+  repeated int64 task_id = 5;
+}
+
+// Next ID: 6
+message DmRequest {
+  //Required. 用户输入文本
+  string text = 1;
+  
+  //历史对话信息 [conversation(历史对话)、intent(用户意图)、slots(任务型对话需填充的槽值)、entities(各个槽值对应的实体)、task_id(任务型对话对应的任务id)]
+  //conversation：对话历史，用户/Bot 交替排列，奇数为用户对话文本，偶数为 Bot 对话文本
+  HistoryElement history = 2;
+  
+  // Required. 多轮对话共用同一个会话 ID
+  string session_id = 3;
+  
+  // Required. 不同人设对应的 ID。具体请参考 https://confluence.mthreads.com/pages/viewpage.action?pageId=79527361
+  int64 robot_id = 4;
+  
+}
+
+// Next ID: 8
+message Result {
+  float angry = 1;
+  float disgust = 2;
+  float fear = 3;
+  float happy = 4;
+  float sad = 5;
+  float surprise = 6;
+  float none = 7;
+}
+
+// Next ID: 4
+message DmResponse { 
+  // Optional. Bot 回复文本，如果为空表示没有可以回复的内容。
+  string answer = 1; 
+  
+  // Required. 当前轮对话结束后的对话历史
+  HistoryElement history = 2;
+  
+  //情绪识别模块预测后的输出
+  Result emotion = 3;
+}
